@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { customProgressions } from '../../utils/constants';
+import React, { useState } from "react";
+import { customProgressions } from "../../utils/constants";
 
 const ProgressionDropdown = ({
   genre,
@@ -14,7 +14,7 @@ const ProgressionDropdown = ({
   const formatProgression = (progression) => {
     return progression
       .map((chord) => `${chord.chord}${chord.quality}`)
-      .join(' ');
+      .join(" ");
   };
 
   const handlePrevious = () => {
@@ -41,7 +41,7 @@ const ProgressionDropdown = ({
         genreProgressions.find((prog) => prog.id === selectedProgressionId)
           .chords
       )
-    : 'Select Progression';
+    : "Select Progression";
 
   return (
     <div className="flex items-center justify-center space-x-2">
@@ -107,7 +107,6 @@ const ProgressionDropdown = ({
       >
         Next
       </button>
-      
     </div>
   );
 };

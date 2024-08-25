@@ -5,7 +5,7 @@ import InstrumentDropdown from "./InstrumentDropdown";
 import RhythmDropdown from "./RhythmDropdown";
 import * as Tone from "tone";
 import { SAMPLER_INSTRUMENTS } from "../../utils/constants";
-import processLeft from "../../utils/processLeft"; // Adjust the path as necessary
+import processLeft, { processRight } from "../../utils/processLeft"; // Adjust the path as necessary
 
 const ChordSection = ({ isPlaying }) => {
   const [selectedGenre, setSelectedGenre] = useState("Country");
@@ -13,7 +13,13 @@ const ChordSection = ({ isPlaying }) => {
   const [selectedInstrument, setSelectedInstrument] = useState("piano");
   const [selectedRhythmId, setSelectedRhythmId] = useState(1);
   const [samplersLoaded, setSamplersLoaded] = useState(false);
+  const [processedNotesLeft, setProcessedNotesLeft] = useState([]);
+  const [processedNotesRight, setProcessedNotesRight] = useState([]);
   const samplersRef = useRef({});
+  const partLeftRef = useRef(null);
+  const partRightRef = useRef(null);
+
+  const TICK_CONVERSION_FACTOR = 960 / 192;
 
   // Preload all samplers when the component mounts
   useEffect(() => {
@@ -50,18 +56,86 @@ const ChordSection = ({ isPlaying }) => {
     }
   }, [selectedInstrument]);
 
-  // Process the left-hand notes when relevant state changes
+  // Process the notes when relevant state changes
   useEffect(() => {
     if (!samplersLoaded) return;
 
-    const processedNotesLeft = processLeft(
+    const processedLeft = processLeft(
       selectedGenre,
       selectedProgressionId,
       selectedRhythmId
+    ).map((notesArray) =>
+      notesArray.map((note) => ({
+        ...note,
+        timeTicks: note.timeTicks / TICK_CONVERSION_FACTOR,
+        durationTicks: note.durationTicks / TICK_CONVERSION_FACTOR,
+      }))
     );
-    // Here you can use processedNotesLeft to schedule the notes or for other purposes
-    console.log("Processed notes for left hand:", processedNotesLeft);
+    setProcessedNotesLeft(processedLeft);
+
+    const processedRight = processRight(
+      selectedGenre,
+      selectedProgressionId,
+      selectedRhythmId
+    ).map((notesArray) =>
+      notesArray.map((note) => ({
+        ...note,
+        timeTicks: note.timeTicks / TICK_CONVERSION_FACTOR,
+        durationTicks: note.durationTicks / TICK_CONVERSION_FACTOR,
+      }))
+    );
+    setProcessedNotesRight(processedRight);
+
+    console.log("Processed notes for left hand:", processedLeft);
+    console.log("Processed notes for right hand:", processedRight);
   }, [selectedGenre, selectedProgressionId, selectedRhythmId, samplersLoaded]);
+
+  // Schedule notes to the transport when processedNotesLeft or processedNotesRight changes
+  useEffect(() => {
+    if (partLeftRef.current) {
+      partLeftRef.current.dispose();
+    }
+
+    const activeSampler = samplersRef.current[selectedInstrument];
+    if (!activeSampler) return;
+
+    const eventsLeft = processedNotesLeft.flat().map((note) => ({
+      time: note.timeTicks / Tone.Transport.PPQ,
+      note: Tone.Frequency(note.midi, "midi").toNote(),
+      duration: note.durationTicks / Tone.Transport.PPQ,
+    }));
+
+    partLeftRef.current = new Tone.Part((time, value) => {
+      activeSampler.triggerAttackRelease(value.note, value.duration, time);
+    }, eventsLeft).start(0);
+
+    if (partRightRef.current) {
+      partRightRef.current.dispose();
+    }
+
+    const eventsRight = processedNotesRight.flat().map((note) => ({
+      time: note.timeTicks / Tone.Transport.PPQ,
+      note: Tone.Frequency(note.midi, "midi").toNote(),
+      duration: note.durationTicks / Tone.Transport.PPQ,
+    }));
+
+    partRightRef.current = new Tone.Part((time, value) => {
+      activeSampler.triggerAttackRelease(value.note, value.duration, time);
+    }, eventsRight).start(0);
+
+    if (isPlaying) {
+      Tone.Transport.start();
+    }
+
+    return () => {
+      if (partLeftRef.current) {
+        partLeftRef.current.dispose();
+      }
+      if (partRightRef.current) {
+        partRightRef.current.dispose();
+      }
+    };
+  }, [processedNotesLeft, processedNotesRight, selectedInstrument, isPlaying]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -95,6 +169,22 @@ const ChordSection = ({ isPlaying }) => {
         selectedRhythmId={selectedRhythmId}
         setSelectedRhythmId={setSelectedRhythmId}
       />
+      <div className="mt-4">
+        <h3 className="text-lg font-semibold mb-2">
+          Processed Notes (Left Hand)
+        </h3>
+        <pre className="bg-gray-500 p-2 rounded">
+          {JSON.stringify(processedNotesLeft, null, 2)}
+        </pre>
+      </div>
+      <div className="mt-4">
+        <h3 className="text-lg font-semibold mb-2">
+          Processed Notes (Right Hand)
+        </h3>
+        <pre className="bg-gray-500 p-2 rounded">
+          {JSON.stringify(processedNotesRight, null, 2)}
+        </pre>
+      </div>
     </div>
   );
 };

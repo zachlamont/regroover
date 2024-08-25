@@ -10,6 +10,8 @@ const Regroover = () => {
   const [selectedGenre, setSelectedGenre] = useState("pop");
 
   useEffect(() => {
+    console.log("selectedBPM:", selectedBPM);
+    console.log("isPlaying:", isPlaying);
     Tone.Transport.bpm.value = selectedBPM;
     isPlaying ? Tone.Transport.start() : Tone.Transport.stop();
   }, [selectedBPM, isPlaying]);

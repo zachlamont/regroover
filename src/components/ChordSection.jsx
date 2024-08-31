@@ -24,18 +24,22 @@ const ChordSection = ({ isPlaying }) => {
   // Preload all samplers when the component mounts
   useEffect(() => {
     const preloadSamplers = async () => {
-      for (const instrument in SAMPLER_INSTRUMENTS) {
-        const { samples } = SAMPLER_INSTRUMENTS[instrument];
-        const sampler = new Tone.Sampler({
-          urls: samples,
-          baseUrl: `/Samples/${instrument}/`,
-        }).toDestination();
+      try {
+        for (const instrument in SAMPLER_INSTRUMENTS) {
+          const { samples } = SAMPLER_INSTRUMENTS[instrument];
+          const sampler = new Tone.Sampler({
+            urls: samples,
+            baseUrl: `/Samples/${instrument}/`,
+          }).toDestination();
 
-        await Tone.loaded();
-        samplersRef.current[instrument] = sampler;
+          await Tone.loaded();
+          samplersRef.current[instrument] = sampler;
+        }
+        console.log("All samplers preloaded");
+        setSamplersLoaded(true);
+      } catch (error) {
+        console.error("Error loading samplers:", error);
       }
-      console.log("All samplers preloaded");
-      setSamplersLoaded(true);
     };
 
     preloadSamplers();
@@ -107,7 +111,11 @@ const ChordSection = ({ isPlaying }) => {
 
     partLeftRef.current = new Tone.Part((time, value) => {
       activeSampler.triggerAttackRelease(value.note, value.duration, time);
-    }, eventsLeft).start(0);
+    }, eventsLeft);
+
+    partLeftRef.current.loop = true;
+    partLeftRef.current.loopEnd = "4m"; // Loop every 4 measures
+    partLeftRef.current.start(0);
 
     if (partRightRef.current) {
       partRightRef.current.dispose();
@@ -121,11 +129,11 @@ const ChordSection = ({ isPlaying }) => {
 
     partRightRef.current = new Tone.Part((time, value) => {
       activeSampler.triggerAttackRelease(value.note, value.duration, time);
-    }, eventsRight).start(0);
+    }, eventsRight);
 
-    if (isPlaying) {
-      Tone.Transport.start();
-    }
+    partRightRef.current.loop = true;
+    partRightRef.current.loopEnd = "4m"; // Loop every 4 measures
+    partRightRef.current.start(0);
 
     return () => {
       if (partLeftRef.current) {
@@ -135,15 +143,7 @@ const ChordSection = ({ isPlaying }) => {
         partRightRef.current.dispose();
       }
     };
-  }, [processedNotesLeft, processedNotesRight, selectedInstrument, isPlaying]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      Tone.Transport.start();
-    } else {
-      Tone.Transport.stop();
-    }
-  }, [isPlaying]);
+  }, [processedNotesLeft, processedNotesRight, selectedInstrument]);
 
   return (
     <div className="p-4">

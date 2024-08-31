@@ -1,4 +1,3 @@
-// src/components/DrumSection.jsx
 import React, { useState, useEffect } from "react";
 import * as Tone from "tone";
 import DrumGenreDropdown from "./DrumGenreDropdown";
@@ -46,24 +45,29 @@ const DrumSection = () => {
 
   useEffect(() => {
     if (selectedDrumPattern) {
-      Tone.Transport.cancel(); // Clear any previously scheduled events
+      //Tone.Transport.cancel(); // Clear any previously scheduled events
 
       const scheduleNotes = (instrument, pattern) => {
-        pattern.forEach((note) => {
-          const time =
-            note.timeTicks / TICK_CONVERSION_FACTOR / Tone.Transport.PPQ;
+        const events = pattern.map((note) => ({
+          time: note.timeTicks / TICK_CONVERSION_FACTOR / Tone.Transport.PPQ,
+          velocity: note.velocity,
+        }));
+
+        const part = new Tone.Part((time, event) => {
           if (players[selectedSamples[instrument]][instrument].loaded) {
-            Tone.Transport.schedule((time) => {
-              players[selectedSamples[instrument]][instrument].start(
-                time,
-                0,
-                "8n",
-                0,
-                note.velocity
-              );
-            }, time);
+            players[selectedSamples[instrument]][instrument].start(
+              time,
+              0,
+              "8n",
+              0,
+              event.velocity
+            );
           }
-        });
+        }, events);
+
+        part.loop = true;
+        part.loopEnd = "2m"; // Set the loop to repeat every 2 measures
+        part.start(0);
       };
 
       scheduleNotes("kick", selectedDrumPattern.kick);
@@ -73,7 +77,7 @@ const DrumSection = () => {
     }
 
     return () => {
-      Tone.Transport.cancel(); // Cleanup scheduled events
+      //Tone.Transport.cancel(); // Cleanup scheduled events
     };
   }, [selectedSamples, selectedDrumPattern]);
 

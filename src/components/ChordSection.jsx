@@ -7,7 +7,7 @@ import * as Tone from "tone";
 import { SAMPLER_INSTRUMENTS } from "../../utils/constants";
 import processLeft, { processRight } from "../../utils/processLeft"; // Adjust the path as necessary
 
-const ChordSection = ({ isPlaying }) => {
+const ChordSection = ({ isPlaying, selectedBPM }) => {
   const [selectedGenre, setSelectedGenre] = useState("Country");
   const [selectedProgressionId, setSelectedProgressionId] = useState(3);
   const [selectedInstrument, setSelectedInstrument] = useState("piano");
@@ -94,7 +94,7 @@ const ChordSection = ({ isPlaying }) => {
     console.log("Processed notes for right hand:", processedRight);
   }, [selectedGenre, selectedProgressionId, selectedRhythmId, samplersLoaded]);
 
-  // Schedule notes to the transport when processedNotesLeft or processedNotesRight changes
+  // Schedule notes to the transport when processedNotesLeft, processedNotesRight, or selectedBPM changes
   useEffect(() => {
     if (partLeftRef.current) {
       partLeftRef.current.dispose();
@@ -103,10 +103,19 @@ const ChordSection = ({ isPlaying }) => {
     const activeSampler = samplersRef.current[selectedInstrument];
     if (!activeSampler) return;
 
+    // Set the BPM before scheduling
+    Tone.Transport.bpm.value = selectedBPM;
+
+    // Calculate the correct timing for the notes based on the BPM and PPQ
+    const calculateTime = (timeTicks) => {
+      const beats = timeTicks / Tone.Transport.PPQ; // Calculate the number of beats
+      return beats * (120 / selectedBPM); // Convert beats to seconds based on BPM
+    };
+
     const eventsLeft = processedNotesLeft.flat().map((note) => ({
-      time: note.timeTicks / Tone.Transport.PPQ,
+      time: calculateTime(note.timeTicks),
       note: Tone.Frequency(note.midi, "midi").toNote(),
-      duration: note.durationTicks / Tone.Transport.PPQ,
+      duration: calculateTime(note.durationTicks),
     }));
 
     partLeftRef.current = new Tone.Part((time, value) => {
@@ -122,9 +131,9 @@ const ChordSection = ({ isPlaying }) => {
     }
 
     const eventsRight = processedNotesRight.flat().map((note) => ({
-      time: note.timeTicks / Tone.Transport.PPQ,
+      time: calculateTime(note.timeTicks),
       note: Tone.Frequency(note.midi, "midi").toNote(),
-      duration: note.durationTicks / Tone.Transport.PPQ,
+      duration: calculateTime(note.durationTicks),
     }));
 
     partRightRef.current = new Tone.Part((time, value) => {
@@ -143,7 +152,12 @@ const ChordSection = ({ isPlaying }) => {
         partRightRef.current.dispose();
       }
     };
-  }, [processedNotesLeft, processedNotesRight, selectedInstrument]);
+  }, [
+    processedNotesLeft,
+    processedNotesRight,
+    selectedInstrument,
+    selectedBPM,
+  ]);
 
   return (
     <div className="p-4">
@@ -190,3 +204,5 @@ const ChordSection = ({ isPlaying }) => {
 };
 
 export default ChordSection;
+
+

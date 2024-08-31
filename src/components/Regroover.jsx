@@ -23,11 +23,14 @@ const Regroover = () => {
       </button>
       <BpmSelector selectedBPM={selectedBPM} setSelectedBPM={setSelectedBPM} />
 
-      <ChordSection isPlaying={isPlaying} genre={selectedGenre} />
-      <DrumSection genre={selectedGenre} />
+      <ChordSection
+        isPlaying={isPlaying}
+        selectedBPM={selectedBPM}
+        genre={selectedGenre}
+      />
+      <DrumSection genre={selectedGenre} selectedBPM={selectedBPM} />
     </div>
   );
 };
 
 export default Regroover;
-
